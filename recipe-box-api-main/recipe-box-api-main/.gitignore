@@ -1,0 +1,13 @@
+# Virtual environments
+venv/
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Local databases - every clone builds its own
+*.db
+
+# Secrets - never commit these
+.env
