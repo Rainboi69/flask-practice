@@ -107,6 +107,50 @@ def register():
     }), 201
 
 
+@app.post("/login")
+def login():
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"error": "a JSON body is required"}), 400
+
+    username = data.get("username")
+    password = data.get("password")
+
+    if (
+        not isinstance(username, str)
+        or not username.strip()
+        or not isinstance(password, str)
+        or not password.strip()
+    ):
+        return jsonify(
+            {"error": "username and password are required"}
+        ), 400
+
+    db = get_db()
+
+    user = db.execute(
+        """
+        SELECT id, username, email, password_hash
+        FROM users
+        WHERE username = ?
+        """,
+        (username,),
+    ).fetchone()
+
+    if user is None or not check_password_hash(
+        user["password_hash"], password
+    ):
+        return jsonify({"error": "invalid credentials"}), 401
+
+    return jsonify({
+        "id": user["id"],
+        "username": user["username"],
+        "email": user["email"],
+    }), 200
+
+
+
 # -------------------------
 # RECIPE ROUTES
 # -------------------------
