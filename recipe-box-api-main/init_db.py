@@ -3,19 +3,22 @@
 import sqlite3
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user'
+);
+
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL UNIQUE,
     ingredients TEXT NOT NULL,
     instructions TEXT NOT NULL DEFAULT '',
-    is_public INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
+    is_public INTEGER NOT NULL DEFAULT 1,
+    owner_id INTEGER,
+    FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 """
 
@@ -41,16 +44,33 @@ SEED = [
 ]
 
 connection = sqlite3.connect("recipes.db")
+connection.execute("PRAGMA foreign_keys = ON")
 connection.executescript(SCHEMA)
-existing = connection.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]
+
+existing = connection.execute(
+    "SELECT COUNT(*) FROM recipes"
+).fetchone()[0]
+
 if existing == 0:
     connection.executemany(
-        "INSERT INTO recipes (title, ingredients, instructions, is_public)"
-        " VALUES (?, ?, ?, ?)",
+        """
+        INSERT INTO recipes
+        (title, ingredients, instructions, is_public)
+        VALUES (?, ?, ?, ?)
+        """,
         SEED,
     )
+
     connection.commit()
-    print(f"Created recipes.db and seeded {len(SEED)} recipes.")
+
+    print(
+        f"Created recipes.db and seeded "
+        f"{len(SEED)} recipes."
+    )
 else:
-    print(f"recipes.db already has {existing} recipes - nothing to do.")
+    print(
+        f"recipes.db already has {existing} recipes "
+        "- nothing to do."
+    )
+
 connection.close()
