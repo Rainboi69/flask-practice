@@ -1,11 +1,15 @@
-import sqlite3
-import jwt
 
-from datetime import datetime, timedelta, timezone
+"""Authentication routes for Recipe Box API."""
+
 from flask import Blueprint, jsonify, request
-from werkzeug.security import generate_password_hash, check_password_hash
 
-from ..main import get_db, JWT_SECRET
+from ..main import get_authenticated_user
+
+from ..services.auth import (
+    register_user,
+    login_user,
+    get_current_user_profile,
+)
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -24,56 +28,23 @@ def register():
             "error": "a JSON body is required"
         }), 400
 
-    username = data.get("username")
-    email = data.get("email")
-    password = data.get("password")
+    result = register_user(
+        data.get("username"),
+        data.get("email"),
+        data.get("password"),
+    )
 
-    if (
-        not isinstance(username, str)
-        or not username.strip()
-        or not isinstance(email, str)
-        or not email.strip()
-        or not isinstance(password, str)
-        or not password
-    ):
+    if result["status"] == "invalid":
         return jsonify({
             "error": "username, email, and password are required"
         }), 400
 
-    username = username.strip()
-    email = email.strip()
-
-    password_hash = generate_password_hash(password)
-
-    db = get_db()
-
-    try:
-        cur = db.execute(
-            """
-            INSERT INTO users
-            (username, email, password_hash)
-            VALUES (?, ?, ?)
-            """,
-            (
-                username,
-                email,
-                password_hash,
-            ),
-        )
-
-        db.commit()
-
-    except sqlite3.IntegrityError:
+    if result["status"] == "duplicate":
         return jsonify({
             "error": "username or email already exists"
         }), 409
 
-    return jsonify({
-        "id": cur.lastrowid,
-        "username": username,
-        "email": email,
-        "role": "user",
-    }), 201
+    return jsonify(result["user"]), 201
 
 
 # -------------------------
@@ -89,71 +60,51 @@ def login():
             "error": "a JSON body is required"
         }), 400
 
-    username = data.get("username")
-    password = data.get("password")
+    result = login_user(
+        data.get("username"),
+        data.get("password"),
+    )
 
-    if (
-        not isinstance(username, str)
-        or not username.strip()
-        or not isinstance(password, str)
-        or not password
-    ):
+    if result["status"] == "invalid_input":
         return jsonify({
             "error": "username and password are required"
         }), 400
 
-    username = username.strip()
-
-    db = get_db()
-
-    user = db.execute(
-        """
-        SELECT *
-        FROM users
-        WHERE username = ?
-        """,
-        (username,),
-    ).fetchone()
-
-    if user is None:
+    if result["status"] == "invalid_credentials":
         return jsonify({
             "error": "invalid credentials"
         }), 401
 
-    if not check_password_hash(
-        user["password_hash"],
-        password,
-    ):
-        return jsonify({
-            "error": "invalid credentials"
-        }), 401
-
-    if not JWT_SECRET:
+    if result["status"] == "missing_secret":
         return jsonify({
             "error": "JWT secret is not configured"
         }), 500
 
-    payload = {
-        "user_id": user["id"],
-        "username": user["username"],
-        "role": user["role"],
-        "exp": datetime.now(timezone.utc)
-        + timedelta(hours=1),
-    }
-
-    token = jwt.encode(
-        payload,
-        JWT_SECRET,
-        algorithm="HS256",
-    )
-
     return jsonify({
         "message": "login successful",
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "email": user["email"],
-            "role": user["role"],
-        },
+        "token": result["token"],
+        "user": result["user"],
     }), 200
+
+
+# -------------------------
+# CURRENT USER PROFILE
+# -------------------------
+
+@auth_bp.get("/auth/me")
+def current_user():
+    payload, error = get_authenticated_user()
+
+    if error:
+        return error
+
+    result = get_current_user_profile(
+        payload["user_id"]
+    )
+
+    if result["status"] == "not_found":
+        return jsonify({
+            "error": "user not found"
+        }), 404
+
+    return jsonify(result["user"]), 200

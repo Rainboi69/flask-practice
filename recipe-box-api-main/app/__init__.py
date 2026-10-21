@@ -1,6 +1,7 @@
 from flask import Flask
 
 from .config import DevelopmentConfig, TestingConfig, ProductionConfig
+from .extensions import db
 
 
 def create_app(config_name):
@@ -15,6 +16,9 @@ def create_app(config_name):
 
     app.config.from_object(configurations[config_name])
 
+    # Connect SQLAlchemy to this application.
+    db.init_app(app)
+
     from . import main
     from .routes.auth import auth_bp
     from .routes.recipes import recipes_bp
@@ -22,11 +26,11 @@ def create_app(config_name):
     # Keep the original routes working.
     app.register_blueprint(main.bp)
 
-    # Register the new feature blueprints.
+    # Register the feature blueprints.
     app.register_blueprint(auth_bp, url_prefix="")
     app.register_blueprint(recipes_bp, url_prefix="")
 
-    # Keep database cleanup working.
+    # Keep existing SQLite connection cleanup working.
     app.teardown_appcontext(main.close_db)
 
     return app

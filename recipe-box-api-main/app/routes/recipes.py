@@ -1,7 +1,18 @@
+import sqlite3
+
 from flask import Blueprint, jsonify, request
-from ..main import get_db, recipe_to_dict, token_required, get_authenticated_user
+
+from ..main import (
+    get_db,
+    recipe_to_dict,
+    token_required,
+    get_authenticated_user,
+)
+from ..services.recipe_service import list_recipes, get_recipe_by_id
+
 
 recipes_bp = Blueprint("recipes", __name__)
+
 
 # -------------------------
 # GET ALL RECIPES
@@ -9,18 +20,7 @@ recipes_bp = Blueprint("recipes", __name__)
 
 @recipes_bp.get("/recipes")
 def get_recipes():
-    rows = get_db().execute(
-        """
-        SELECT *
-        FROM recipes
-        ORDER BY id
-        """
-    ).fetchall()
-
-    return jsonify([
-        recipe_to_dict(row)
-        for row in rows
-    ])
+    return jsonify(list_recipes())
 
 
 # -------------------------
@@ -29,43 +29,14 @@ def get_recipes():
 
 @recipes_bp.get("/recipes/<int:recipe_id>")
 def get_recipe(recipe_id):
-    db = get_db()
-
-    recipe = db.execute(
-        """
-        SELECT *
-        FROM recipes
-        WHERE id = ?
-        """,
-        (recipe_id,),
-    ).fetchone()
+    recipe = get_recipe_by_id(recipe_id)
 
     if recipe is None:
         return jsonify({
             "error": "recipe not found"
         }), 404
 
-    # Public recipes can be viewed by anyone.
-    if recipe["is_public"]:
-        return jsonify(recipe_to_dict(recipe)), 200
-
-    # Private recipes require authentication.
-    payload, error = get_authenticated_user()
-
-    if error:
-        return jsonify({
-            "error": "you do not have permission to view this recipe"
-        }), 403
-
-    is_owner = recipe["owner_id"] == payload["user_id"]
-    is_admin = payload.get("role") == "admin"
-
-    if not is_owner and not is_admin:
-        return jsonify({
-            "error": "you do not have permission to view this recipe"
-        }), 403
-
-    return jsonify(recipe_to_dict(recipe)), 200
+    return jsonify(recipe), 200
 
 
 # -------------------------
@@ -273,11 +244,3 @@ def delete_recipe(recipe_id):
     db.commit()
 
     return "", 204
-
-
-# -------------------------
-# RUN APPLICATION
-# -------------------------
-
-if __name__ == "__main__":
-    app.run(debug=True)
