@@ -2,8 +2,8 @@
 """Authentication routes for Recipe Box API."""
 
 from flask import Blueprint, jsonify, request
-
 from ..main import get_authenticated_user
+from ..extensions import limiter
 
 from ..services.auth import (
     register_user,
@@ -20,6 +20,7 @@ auth_bp = Blueprint("auth", __name__)
 # -------------------------
 
 @auth_bp.post("/register")
+@limiter.limit("3 per hour")
 def register():
     data = request.get_json(silent=True)
 
@@ -52,6 +53,7 @@ def register():
 # -------------------------
 
 @auth_bp.post("/login")
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json(silent=True)
 
