@@ -81,7 +81,7 @@ def login_user(username, password):
         return {"status": "invalid_credentials"}
 
     if not check_password_hash(
-        user["password_hash"],
+        user.password_hash,
         password,
     ):
         return {"status": "invalid_credentials"}
@@ -90,9 +90,9 @@ def login_user(username, password):
         return {"status": "missing_secret"}
 
     payload = {
-        "user_id": user["id"],
-        "username": user["username"],
-        "role": user["role"],
+        "user_id": user.id,
+        "username": user.username,
+        "role": user.role,
         "exp": datetime.now(timezone.utc)
         + timedelta(hours=1),
     }
@@ -107,10 +107,10 @@ def login_user(username, password):
         "status": "ok",
         "token": token,
         "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "email": user["email"],
-            "role": user["role"],
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
         },
     }
 
@@ -125,9 +125,9 @@ def get_current_user_profile(user_id):
     return {
         "status": "ok",
         "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "email": user["email"],
-            "role": user["role"],
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
         },
     }

@@ -13,6 +13,10 @@ from ..services.recipe_service import list_recipes, get_recipe_by_id
 
 recipes_bp = Blueprint("recipes", __name__)
 
+def current_user_id(payload):
+    """User id from a verified token: 'sub' (users service) or 'user_id' (monolith)."""
+    return int(payload.get("sub", payload.get("user_id")))
+
 
 # -------------------------
 # GET ALL RECIPES
@@ -26,7 +30,7 @@ def get_recipes():
         payload, error = get_authenticated_user()
         if error:
             return error
-        viewer_id = int(payload["sub"])
+        viewer_id = current_user_id(payload)
 
     return jsonify(list_recipes(viewer_id))
 
@@ -49,7 +53,7 @@ def get_recipe(recipe_id):
         if error:
             return error
 
-        if recipe["owner_id"] != int(payload["sub"]):
+        if recipe["owner_id"] != current_user_id(payload):
             return jsonify({
                 "error": "you do not have permission to view this recipe"
             }), 403
@@ -99,7 +103,7 @@ def create_recipe():
                 data["ingredients"],
                 data.get("instructions", ""),
                 1 if data.get("is_public", True) else 0,
-                int(payload["sub"]),
+                current_user_id(payload),
             ),
         )
 
@@ -146,7 +150,7 @@ def update_recipe(payload, recipe_id):
         }), 404
 
     # Owner OR admin may edit.
-    is_owner = recipe["owner_id"] == int(payload["sub"])
+    is_owner = recipe["owner_id"] == current_user_id(payload)
     is_admin = payload.get("role") == "admin"
 
     if not is_owner and not is_admin:
@@ -243,7 +247,7 @@ def delete_recipe(recipe_id):
         }), 404
 
     # Owner OR admin may delete.
-    is_owner = recipe["owner_id"] == int(payload["sub"])
+    is_owner = recipe["owner_id"] == current_user_id(payload)
     is_admin = payload.get("role") == "admin"
 
     if not is_owner and not is_admin:
