@@ -2,3 +2,6 @@ flask
 Flask-Migrate==4.1.0
 Flask-Caching
 Flask-Limiter==4.1.1
+Werkzeug
+PyJWT
+python-dotenv
