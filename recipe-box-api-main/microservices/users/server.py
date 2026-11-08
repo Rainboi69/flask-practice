@@ -84,6 +84,34 @@ def create_users_app():
         token = jwt.encode(payload, app.config["JWT_SECRET"], algorithm="HS256")
         return {"access_token": token}, 200
 
+
+    @app.get("/me")
+    def me():
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return {"error": "missing or invalid token"}, 401
+
+        token = auth_header.split(" ", 1)[1]
+
+        try:
+            payload = jwt.decode(
+                token, app.config["JWT_SECRET"], algorithms=["HS256"]
+            )
+        except jwt.ExpiredSignatureError:
+            return {"error": "token expired, please log in again"}, 401
+        except jwt.PyJWTError:
+            return {"error": "invalid token"}, 401
+
+        user = db.session.get(User, int(payload["sub"]))
+        if user is None:
+            return {"error": "user not found"}, 404
+
+        return {
+            "id": user.id,
+            "email": user.email,
+            "created_at": user.created_at.isoformat(),
+        }, 200
+
     return app
 
 
