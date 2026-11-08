@@ -27,7 +27,7 @@ def create_recipes_app():
     @app.before_request
     def verify_internal_service_token():
         expected_token = os.getenv("INTERNAL_SERVICE_TOKEN")
-        supplied_token = request.headers.get("INTERNAL_SERVICE_TOKEN", "")
+        supplied_token = request.headers.get("X-Internal-Token", "")
 
         if not expected_token:
             return jsonify({

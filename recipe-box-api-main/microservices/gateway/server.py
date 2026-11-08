@@ -32,7 +32,7 @@ def forward_request(service_url, path, internal=False):
         token = os.getenv("INTERNAL_SERVICE_TOKEN")
         if not token:
             return jsonify({"error": "gateway not configured"}), 503
-        headers["INTERNAL_SERVICE_TOKEN"] = token
+        headers["X-Internal-Token"] = token
 
     try:
         response = requests.request(
@@ -103,7 +103,7 @@ def overview():
         headers = {}
 
         if internal:
-            headers["INTERNAL_SERVICE_TOKEN"] = os.getenv(
+            headers["X-Internal-Token"] = os.getenv(
                 "INTERNAL_SERVICE_TOKEN", ""
             )
 
